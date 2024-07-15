@@ -1,6 +1,5 @@
 import telebot
 import requests
-from bs4 import BeautifulSoup
 import os
 
 API_TOKEN = '7487843475:AAHrl5rHuOV6dHKkR5Lq2_FK3xyVxnYvtFA'
@@ -12,10 +11,10 @@ def send_welcome(message):
 
 @bot.message_handler(func=lambda message: True)
 def handle_message(message):
-    mediafire_link = message.text
+    mediafire_link = message.text.strip()
     if "mediafire.com" in mediafire_link:
         bot.reply_to(message, "Downloading your file, please wait...")
-        file_path = download_file(message.chat.id, mediafire_link)
+        file_path = download_file(mediafire_link)
         if file_path:
             bot.reply_to(message, "File downloaded! Uploading to Telegram...")
             upload_to_telegram(message.chat.id, file_path)
@@ -25,19 +24,18 @@ def handle_message(message):
     else:
         bot.reply_to(message, "Please send a valid Mediafire link.")
 
-def download_file(chat_id, mediafire_link):
+def download_file(mediafire_link):
     try:
         response = requests.get(mediafire_link, stream=True)
         if response.status_code == 200:
             file_name = mediafire_link.split("/")[-1]
-            file_path = f"/tmp/{file_name}"  # Save file in temporary directory
-            with open(file_path, 'wb') as f:
-                for chunk in response.iter_content(chunk_size=1024*1024):
+            with open(file_name, 'wb') as f:
+                for chunk in response.iter_content(chunk_size=1024):
                     if chunk:
                         f.write(chunk)
-                        # Edit message with download progress
-                        bot.edit_message_text(f"Downloading... {round(os.path.getsize(file_path) / 1024 / 1024, 2)} MB", chat_id, message_id=message.message_id)
-            return file_path
+            return file_name
+        else:
+            print(f"Failed to download file. Status code: {response.status_code}")
     except Exception as e:
         print(f"Error downloading file: {e}")
     return None
