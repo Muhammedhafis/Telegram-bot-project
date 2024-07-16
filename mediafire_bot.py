@@ -22,9 +22,13 @@ logs_collection = db['logs']
 def download_from_mediafire(url, file_path, chat_id, message_id):
     response = requests.get(url, stream=True)
     total_length = response.headers.get('content-length')
-    
+
     if total_length is None:
-        raise ValueError("Content-Length header is missing in the response.")
+        # Handle case where content-length header is missing
+        with open(file_path, 'wb') as file:
+            for data in response.iter_content(chunk_size=4096):
+                file.write(data)
+        return file_path
 
     total_length = int(total_length)
 
