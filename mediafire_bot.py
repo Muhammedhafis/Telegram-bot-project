@@ -94,7 +94,7 @@ def handle_all_messages(message):
         bot.reply_to(message, "I'm sorry, I didn't understand that command.")
         log_to_mongo('unknown_command', message)
     except Exception as e:
-        error_message = f"Error handling message: {str(e)}"`
+        error_message = f"Error handling message: {str(e)}"
         error_trace = traceback.format_exc()
         logger.error(error_message)
         bot.send_message(message.chat.id, "Sorry, something went wrong.")
