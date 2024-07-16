@@ -1,16 +1,19 @@
-import os
 import telebot
 import requests
 import logging
 import time
 
-API_TOKEN = os.getenv('7487843475:AAHrl5rHuOV6dHKkR5Lq2_FK3xyVxnYvtFA')
+API_TOKEN = '7487843475:AAHrl5rHuOV6dHKkR5Lq2_FK3xyVxnYvtFA'
 bot = telebot.TeleBot(API_TOKEN)
 logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
 
 # Function to download file from Mediafire
 def download_from_mediafire(url):
     response = requests.get(url, stream=True)
+    # Implement logic to handle the download here
+    # Example: Save downloaded content to a temporary file
+    # Return the temporary file path or content
     downloaded_file_path_or_content = '/path/to/downloaded_file'
     return downloaded_file_path_or_content
 
@@ -61,4 +64,5 @@ def handle_all_messages(message):
         bot.send_message(message.chat.id, "Sorry, something went wrong.")
 
 if __name__ == '__main__':
-    bot.polling()
+    logger.info("Starting bot...")
+    bot.polling(none_stop=True)
