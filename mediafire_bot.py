@@ -3,6 +3,7 @@ import telebot
 import requests
 import logging
 import time
+import traceback
 from pymongo import MongoClient
 
 API_TOKEN = '7487843475:AAHrl5rHuOV6dHKkR5Lq2_FK3xyVxnYvtFA'
@@ -80,9 +81,11 @@ def handle_mediafire_link(message):
         bot.edit_message_text("Upload complete!", chat_id, msg.message_id)
         os.remove(file_path)
     except Exception as e:
-        logger.error(f"Error processing Mediafire link: {str(e)}")
+        error_message = f"Error processing Mediafire link: {str(e)}"
+        error_trace = traceback.format_exc()
+        logger.error(error_message)
         bot.send_message(message.chat.id, "Sorry, an error occurred.")
-        log_to_mongo('error', message, str(e))
+        log_to_mongo('error', message, f"{error_message}\n{error_trace}")
 
 # Handler for all other messages
 @bot.message_handler(func=lambda message: True)
@@ -91,9 +94,11 @@ def handle_all_messages(message):
         bot.reply_to(message, "I'm sorry, I didn't understand that command.")
         log_to_mongo('unknown_command', message)
     except Exception as e:
-        logger.error(f"Error handling message: {str(e)}")
+        error_message = f"Error handling message: {str(e)}"`
+        error_trace = traceback.format_exc()
+        logger.error(error_message)
         bot.send_message(message.chat.id, "Sorry, something went wrong.")
-        log_to_mongo('error', message, str(e))
+        log_to_mongo('error', message, f"{error_message}\n{error_trace}")
 
 if __name__ == '__main__':
     logger.info("Starting bot...")
