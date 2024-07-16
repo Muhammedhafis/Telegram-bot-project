@@ -62,9 +62,11 @@ def handle_start(message):
         bot.reply_to(message, "Welcome! I am your Mediafire bot. Send me a Mediafire link to download and upload files.")
         log_to_mongo('start_help', message)
     except Exception as e:
-        logger.error(f"Error handling start command: {str(e)}")
-        bot.send_message(message.chat.id, "Sorry, something went wrong.")
-        log_to_mongo('error', message, str(e))
+        error_message = f"Error handling start command: {str(e)}"
+        error_trace = traceback.format_exc()
+        logger.error(error_message)
+        bot.send_message(message.chat.id, f"Sorry, something went wrong:\n{error_message}")
+        log_to_mongo('error', message, f"{error_message}\n{error_trace}")
 
 # Handler for messages containing Mediafire links
 @bot.message_handler(func=lambda message: 'mediafire.com' in message.text)
@@ -84,7 +86,7 @@ def handle_mediafire_link(message):
         error_message = f"Error processing Mediafire link: {str(e)}"
         error_trace = traceback.format_exc()
         logger.error(error_message)
-        bot.send_message(message.chat.id, "Sorry, an error occurred.")
+        bot.send_message(message.chat.id, f"Sorry, an error occurred:\n{error_message}")
         log_to_mongo('error', message, f"{error_message}\n{error_trace}")
 
 # Handler for all other messages
@@ -97,7 +99,7 @@ def handle_all_messages(message):
         error_message = f"Error handling message: {str(e)}"
         error_trace = traceback.format_exc()
         logger.error(error_message)
-        bot.send_message(message.chat.id, "Sorry, something went wrong.")
+        bot.send_message(message.chat.id, f"Sorry, something went wrong:\n{error_message}")
         log_to_mongo('error', message, f"{error_message}\n{error_trace}")
 
 if __name__ == '__main__':
