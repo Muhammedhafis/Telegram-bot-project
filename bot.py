@@ -1,50 +1,88 @@
 import os
-from dotenv import load_dotenv
-import telebot
-from pytube import YouTube
+import logging
+from telegram import Update, InputFile
+from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext
+import requests
 
-# Load environment variables from .env file
-load_dotenv()
+# Set up logging
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-# Retrieve the bot token from environment variables
-BOT_TOKEN = os.getenv('BOT_TOKEN')
+# Define your Telegram bot token and OpenAI API key
+TELEGRAM_API_KEY = "7487843475:AAHrl5rHuOV6dbot HKkR5Lq2_FK3xyVxnYvtFA"
+OPENAI_API_KEY = "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"
 
-# Initialize Telegram Bot
-bot = telebot.TeleBot(BOT_TOKEN)
+# Command handler for /start command
+def start(update: Update, context: CallbackContext) -> None:
+    update.message.reply_text('Hello! I am your chatbot.')
 
-# Handle /start command
-@bot.message_handler(commands=['start'])
-def handle_start(message):
-    bot.send_message(message.chat.id, "Welcome! Send me a YouTube link and I'll download the video for you.")
+# Command handler for /help command
+def help_command(update: Update, context: CallbackContext) -> None:
+    update.message.reply_text('You can ask me anything.')
 
-# Handle YouTube video links
-@bot.message_handler(regexp=r'^https?://(?:www\.)?(?:youtube\.com/watch\?v=|youtu\.be/)([\w-]+)')
-def handle_youtube_link(message):
-    chat_id = message.chat.id
-    url = message.text
+# Message handler for normal messages
+def handle_message(update: Update, context: CallbackContext) -> None:
+    message_text = update.message.text
 
+    # Process the message using OpenAI API
+    response = openai_query(message_text)
+
+    # Send the response back to the user
+    update.message.reply_text(response)
+
+# Function to query OpenAI API
+def openai_query(input_text: str) -> str:
+    url = "https://api.openai.com/v1/engines/davinci/completions"
+    headers = {
+        "Authorization": f"Bearer {OPENAI_API_KEY}",
+        "Content-Type": "application/json"
+    }
+    data = {
+        "prompt": input_text,
+        "max_tokens": 50
+    }
+    response = requests.post(url, headers=headers, json=data)
+    return response.json()["choices"][0]["text"]
+
+# Command handler for /download command
+def download(update: Update, context: CallbackContext) -> None:
+    if len(context.args) == 0:
+        update.message.reply_text('Please provide a URL to download from.')
+        return
+
+    url = context.args[0]
     try:
-        # Download video
-        bot.send_message(chat_id, "Downloading video... Please wait.")
-        yt = YouTube(url)
-        stream = yt.streams.get_highest_resolution()
-        video_file = stream.download()
-
-        # Send video file
-        bot.send_video(chat_id, open(video_file, 'rb'))
-
-        # Clean up
-        os.remove(video_file)
-        bot.send_message(chat_id, "Video successfully downloaded and sent!")
-
+        file_name = url.split('/')[-1]
+        response = requests.get(url)
+        if response.status_code == 200:
+            file_path = f'/tmp/{file_name}'
+            with open(file_path, 'wb') as file:
+                file.write(response.content)
+            update.message.reply_document(document=open(file_path, 'rb'))
+        else:
+            update.message.reply_text('Failed to download the file.')
     except Exception as e:
-        error_message = f"Error: {str(e)}"
-        bot.send_message(chat_id, error_message)
+        logger.error(f"Error downloading file: {e}")
+        update.message.reply_text('Error downloading the file.')
 
-# Handle other messages
-@bot.message_handler(func=lambda message: True)
-def handle_other(message):
-    bot.reply_to(message, "Send me a valid YouTube video link.")
+def main() -> None:
+    # Create the Updater and pass it your bot's token.
+    updater = Updater(TELEGRAM_API_KEY)
 
-# Run the bot
-bot.polling()
+    # Get the dispatcher to register handlers
+    dispatcher = updater.dispatcher
+
+    # Register command handlers
+    dispatcher.add_handler(CommandHandler("start", start))
+    dispatcher.add_handler(CommandHandler("help", help_command))
+    dispatcher.add_handler(CommandHandler("download", download))
+
+    # Register a message handler for normal messages
+    dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_message))
+
+    # Start the Bot
+    updater.start_polling()
+    updater.idle()
+
+if __name__ == '__main__':
+    main()
