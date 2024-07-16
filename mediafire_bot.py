@@ -6,8 +6,8 @@ import time
 import traceback
 from pymongo import MongoClient
 
-API_TOKEN = '7487843475:AAHrl5rHuOV6dHKkR5Lq2_FK3xyVxnYvtFA'
-MONGO_URI = 'mongodb+srv://King-MdIsbot:King-MdIsbot@cluster0.hikjrg2.mongodb.net/?retryWrites=true&w=majority'
+API_TOKEN = 'YOUR_TELEGRAM_BOT_API_TOKEN'
+MONGO_URI = 'YOUR_MONGODB_URI'
 
 bot = telebot.TeleBot(API_TOKEN)
 logger = logging.getLogger(__name__)
@@ -20,49 +20,62 @@ logs_collection = db['logs']
 
 # Function to download file from Mediafire with progress tracking
 def download_from_mediafire(url, file_path, chat_id, message_id):
-    response = requests.get(url, stream=True)
-    total_length = response.headers.get('content-length')
+    try:
+        response = requests.get(url, stream=True)
+        total_length = response.headers.get('content-length')
 
-    if total_length is None:
-        # Handle case where content-length header is missing
+        if total_length is None:
+            # Handle case where content-length header is missing
+            with open(file_path, 'wb') as file:
+                for data in response.iter_content(chunk_size=4096):
+                    file.write(data)
+            return file_path
+
+        total_length = int(total_length)
+
         with open(file_path, 'wb') as file:
+            downloaded = 0
             for data in response.iter_content(chunk_size=4096):
                 file.write(data)
+                downloaded += len(data)
+                progress = int(10 * downloaded / total_length)
+                send_progress_message(chat_id, message_id, progress)
+
         return file_path
 
-    total_length = int(total_length)
-
-    with open(file_path, 'wb') as file:
-        downloaded = 0
-        for data in response.iter_content(chunk_size=4096):
-            file.write(data)
-            downloaded += len(data)
-            progress = int(10 * downloaded / total_length)
-            send_progress_message(chat_id, message_id, progress)
-
-    return file_path
+    except Exception as e:
+        raise RuntimeError(f"Error downloading file from Mediafire: {str(e)}")
 
 # Function to upload file to Telegram
 def upload_to_telegram(chat_id, file_path):
-    with open(file_path, 'rb') as file:
-        bot.send_document(chat_id, file)
+    try:
+        with open(file_path, 'rb') as file:
+            bot.send_document(chat_id, file)
+    except Exception as e:
+        raise RuntimeError(f"Error uploading file to Telegram: {str(e)}")
 
 # Function to send progress message with dynamic indicators
 def send_progress_message(chat_id, message_id, progress):
-    dots = '°' * progress
-    bot.edit_message_text(f"Progress: [{dots}{' '*(10-progress)}]", chat_id, message_id)
+    try:
+        dots = '°' * progress
+        bot.edit_message_text(f"Progress: [{dots}{' '*(10-progress)}]", chat_id, message_id)
+    except Exception as e:
+        raise RuntimeError(f"Error sending progress message: {str(e)}")
 
 # Log to MongoDB
 def log_to_mongo(event, message, details=""):
-    log_entry = {
-        'event': event,
-        'user_id': message.from_user.id,
-        'username': message.from_user.username,
-        'message': message.text,
-        'details': details,
-        'timestamp': time.time()
-    }
-    logs_collection.insert_one(log_entry)
+    try:
+        log_entry = {
+            'event': event,
+            'user_id': message.from_user.id,
+            'username': message.from_user.username,
+            'message': message.text,
+            'details': details,
+            'timestamp': time.time()
+        }
+        logs_collection.insert_one(log_entry)
+    except Exception as e:
+        raise RuntimeError(f"Error logging to MongoDB: {str(e)}")
 
 # Command handler for /start and /help commands
 @bot.message_handler(commands=['start', 'help'])
