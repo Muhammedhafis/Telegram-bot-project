@@ -6,8 +6,8 @@ import time
 import traceback
 from pymongo import MongoClient
 
-API_TOKEN = '7487843475:AAHrl5rHuOV6dHKkR5Lq2_FK3xyVxnYvtFA'
-MONGO_URI = 'mongodb+srv://King-MdIsbot:King-MdIsbot@cluster0.hikjrg2.mongodb.net/?retryWrites=true&w=majority'
+API_TOKEN = 'YOUR_TELEGRAM_BOT_API_TOKEN'
+MONGO_URI = 'YOUR_MONGODB_URI'
 
 bot = telebot.TeleBot(API_TOKEN)
 logger = logging.getLogger(__name__)
@@ -84,11 +84,10 @@ def handle_mediafire_link(message):
         url = message.text
         logger.info(f"Received Mediafire link: {url}")
         log_to_mongo('mediafire_link', message)
-        file_path = '/tmp/downloaded_file'
         
-        # Remove any existing file to ensure a clean slate
-        if os.path.exists(file_path):
-            os.remove(file_path)
+        # Generate a unique file path for each download
+        file_name = f"downloaded_file_{time.time()}.tmp"
+        file_path = os.path.join('/tmp', file_name)
         
         chat_id = message.chat.id
         msg = bot.send_message(chat_id, "Downloading...")
@@ -96,7 +95,7 @@ def handle_mediafire_link(message):
         upload_to_telegram(chat_id, downloaded_file)
         bot.edit_message_text("Upload complete!", chat_id, msg.message_id)
         
-        # Remove the file after sending to save space
+        # Remove the temporary file after sending to save space
         os.remove(downloaded_file)
     except Exception as e:
         error_message = f"Error processing Mediafire link: {str(e)}"
