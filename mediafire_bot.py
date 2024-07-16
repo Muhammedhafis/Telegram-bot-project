@@ -8,12 +8,10 @@ bot = telebot.TeleBot(API_TOKEN)
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
-# Function to download file from Mediafire
+# Function to download file from Mediafire (placeholder)
 def download_from_mediafire(url):
     response = requests.get(url, stream=True)
-    # Implement logic to handle the download here
-    # Example: Save downloaded content to a temporary file
-    # Return the temporary file path or content
+    # Placeholder logic to handle the download
     downloaded_file_path_or_content = '/path/to/downloaded_file'
     return downloaded_file_path_or_content
 
@@ -36,11 +34,12 @@ def handle_start(message):
         logger.error(f"Error handling start command: {str(e)}")
         bot.send_message(message.chat.id, "Sorry, something went wrong.")
 
-# Command handler for /download command
-@bot.message_handler(commands=['download'])
-def handle_download(message):
+# Handler for messages containing Mediafire links
+@bot.message_handler(func=lambda message: 'mediafire.com' in message.text)
+def handle_mediafire_link(message):
     try:
-        url = message.text.split(' ', 1)[1]
+        url = message.text
+        logger.info(f"Received Mediafire link: {url}")
         downloaded_file = download_from_mediafire(url)
         chat_id = message.chat.id
         msg = bot.send_message(chat_id, "Downloading...")
@@ -51,7 +50,7 @@ def handle_download(message):
         upload_to_telegram(chat_id, downloaded_file)
         bot.edit_message_text("Upload complete!", chat_id, msg.message_id)
     except Exception as e:
-        logger.error(f"Error processing download: {str(e)}")
+        logger.error(f"Error processing Mediafire link: {str(e)}")
         bot.send_message(chat_id, "Sorry, an error occurred.")
 
 # Handler for all other messages
