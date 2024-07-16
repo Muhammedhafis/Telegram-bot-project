@@ -85,12 +85,19 @@ def handle_mediafire_link(message):
         logger.info(f"Received Mediafire link: {url}")
         log_to_mongo('mediafire_link', message)
         file_path = '/tmp/downloaded_file'
+        
+        # Remove any existing file to ensure a clean slate
+        if os.path.exists(file_path):
+            os.remove(file_path)
+        
         chat_id = message.chat.id
         msg = bot.send_message(chat_id, "Downloading...")
         downloaded_file = download_from_mediafire(url, file_path, chat_id, msg.message_id)
         upload_to_telegram(chat_id, downloaded_file)
         bot.edit_message_text("Upload complete!", chat_id, msg.message_id)
-        os.remove(file_path)
+        
+        # Remove the file after sending to save space
+        os.remove(downloaded_file)
     except Exception as e:
         error_message = f"Error processing Mediafire link: {str(e)}"
         error_trace = traceback.format_exc()
@@ -113,4 +120,4 @@ def handle_all_messages(message):
 
 if __name__ == '__main__':
     logger.info("Starting bot...")
-    bot.polling(none_stop=True)
+    bot.polling(none_stop=True
