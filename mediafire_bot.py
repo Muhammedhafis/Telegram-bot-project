@@ -6,8 +6,8 @@ import time
 import traceback
 from pymongo import MongoClient
 
-API_TOKEN = 'YOUR_TELEGRAM_BOT_API_TOKEN'
-MONGO_URI = 'YOUR_MONGODB_URI'
+API_TOKEN = '7487843475:AAHrl5rHuOV6dHKkR5Lq2_FK3xyVxnYvtFA'
+MONGO_URI = 'mongodb+srv://King-MdIsbot:King-MdIsbot@cluster0.hikjrg2.mongodb.net/?retryWrites=true&w=majority'
 
 bot = telebot.TeleBot(API_TOKEN)
 logger = logging.getLogger(__name__)
