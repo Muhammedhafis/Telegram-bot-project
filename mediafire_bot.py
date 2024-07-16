@@ -21,7 +21,12 @@ logs_collection = db['logs']
 # Function to download file from Mediafire with progress tracking
 def download_from_mediafire(url, file_path, chat_id, message_id):
     response = requests.get(url, stream=True)
-    total_length = int(response.headers.get('content-length'))
+    total_length = response.headers.get('content-length')
+    
+    if total_length is None:
+        raise ValueError("Content-Length header is missing in the response.")
+
+    total_length = int(total_length)
 
     with open(file_path, 'wb') as file:
         downloaded = 0
