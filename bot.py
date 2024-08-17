@@ -1,4 +1,5 @@
-from flask import Flask, request
+from flask import Flask, request, render_template
+from flask_socketio import SocketIO, emit
 import telebot
 import requests
 import sqlite3
@@ -14,6 +15,10 @@ TELEGRAM_BOT_TOKEN = '7282603200:AAEJnNY9Z-sQfBrrwzkroiY754NndaEPSlY'
 
 # Initialize the bot
 bot = telebot.TeleBot(TELEGRAM_BOT_TOKEN)
+
+# Initialize Flask and SocketIO
+app = Flask(__name__)
+socketio = SocketIO(app)
 
 # Database setup
 DATABASE = 'user_data.db'
@@ -50,12 +55,6 @@ def set_user_data(user_id, name, conversation_history):
             conversation_history = excluded.conversation_history
         ''', (user_id, name, conversation_history))
 
-def fetch_weather(location):
-    """Fetch the weather information from a weather API."""
-    # Use a weather API here to get the current weather for the location
-    # This is a placeholder response
-    return f"The weather in {location} is currently sunny with a temperature of 28°C."
-
 def generate_response(user_id, message):
     """Generate a response using the GPT-4 API."""
     try:
@@ -84,12 +83,14 @@ def generate_response(user_id, message):
         logger.error(f"Unexpected error: {e}")
         return "Sorry, I'm having trouble processing your request."
 
-# Initialize Flask web server
-app = Flask(__name__)
+def fetch_weather(location):
+    """Fetch the weather information from a weather API."""
+    # Placeholder implementation; replace with actual API call
+    return f"The weather in {location} is currently sunny with a temperature of 28°C."
 
 @app.route('/')
 def index():
-    return "Bot is running!"
+    return render_template('index.html')
 
 @app.route('/webhook', methods=['POST'])
 def webhook():
@@ -97,6 +98,13 @@ def webhook():
     update = telebot.types.Update.de_json(json_str)
     bot.process_new_updates([update])
     return '', 200
+
+@socketio.on('message')
+def handle_message(data):
+    user_id = data['user_id']
+    message = data['message']
+    response = generate_response(user_id, message)
+    emit('response', {'message': response})
 
 @bot.message_handler(commands=['start', 'help'])
 def send_welcome(message):
@@ -127,8 +135,7 @@ def run_bot():
 # Initialize the database
 init_db()
 
-# Start the Flask web server in a separate thread
-threading.Thread(target=lambda: app.run(host='0.0.0.0', port=8080)).start()
-
-# Start the Telegram bot
-run_bot()
+# Start the Flask web server and SocketIO
+if __name__ == '__main__':
+    threading.Thread(target=lambda: app.run(host='0.0.0.0', port=8080)).start()
+    run_bot()
