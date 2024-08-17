@@ -1,3 +1,5 @@
-Flask
-pyTelegramBotAPI
+telebot
 requests
+beautifulsoup4
+Flask
+aiohttp
