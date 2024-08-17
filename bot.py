@@ -1,105 +1,123 @@
-import logging
-from telegram.ext import Updater, CommandHandler, CallbackQueryHandler
+from flask import Flask, request
+import telebot
 import requests
-import configparser
-import time
-import random
+import sqlite3
+import logging
+import threading
 
-# Enable logging
-logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-                    level=logging.INFO)
-
+# Setup logging
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Load configuration from config.ini
-config = configparser.ConfigParser()
-config.read('config.ini')
+# Telegram bot token
+TELEGRAM_BOT_TOKEN = '7282603200:AAEJnNY9Z-sQfBrrwzkroiY754NndaEPSlY'
 
-aternos_username = config['Aternos']['username']
-aternos_password = config['Aternos']['password']
-bot_api_key = config['Telegram']['api_key']
+# Initialize the bot
+bot = telebot.TeleBot(TELEGRAM_BOT_TOKEN)
 
-# Aternos API base URL
-aternos_api_url = 'https://aternos.org/api'
+# Database setup
+DATABASE = 'user_data.db'
 
-# User-Agent rotation list
-user_agents = [
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3',
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:53.0) Gecko/20100101 Firefox/53.0',
-    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3',
-    # Add more user agents to the list to rotate them
-]
+def init_db():
+    """Initialize the SQLite database and create tables if they don't exist."""
+    with sqlite3.connect(DATABASE) as conn:
+        cursor = conn.cursor()
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS user_data (
+                user_id INTEGER PRIMARY KEY,
+                name TEXT,
+                conversation_history TEXT
+            )
+        ''')
 
-# Authenticate with the Aternos API
-def authenticate():
-    headers = {'User-Agent': random.choice(user_agents)}
-    auth_response = requests.post(f'{aternos_api_url}/user/auth', json={'username': aternos_username, 'password': aternos_password}, headers=headers)
-    if auth_response.status_code == 200:
-        return auth_response.json()['token']
+def get_user_data(user_id):
+    """Retrieve user data from the database."""
+    with sqlite3.connect(DATABASE) as conn:
+        cursor = conn.cursor()
+        cursor.execute('SELECT name, conversation_history FROM user_data WHERE user_id = ?', (user_id,))
+        row = cursor.fetchone()
+    return {'name': row[0] if row else None, 'conversation_history': row[1] if row else ''}
+
+def set_user_data(user_id, name, conversation_history):
+    """Store or update user data in the database."""
+    with sqlite3.connect(DATABASE) as conn:
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT INTO user_data (user_id, name, conversation_history)
+            VALUES (?, ?, ?)
+            ON CONFLICT(user_id) DO UPDATE SET
+            name = excluded.name,
+            conversation_history = excluded.conversation_history
+        ''', (user_id, name, conversation_history))
+
+def generate_response(user_id, message):
+    """Generate a response using the GPT-4 API."""
+    try:
+        user_data = get_user_data(user_id)
+        conversation_history = user_data['conversation_history'] + f"User: {message}\n"
+        
+        prompt = f"{conversation_history}Bot: Respond in a friendly and engaging manner."
+        url = f"https://gpt4.giftedtech.workers.dev/?prompt={prompt}"
+        response = requests.get(url)
+        response.raise_for_status()
+
+        result = response.json().get("result", "Sorry, I couldn't generate a response.")
+        conversation_history += f"Bot: {result}\n"
+        set_user_data(user_id, user_data['name'], conversation_history)
+        
+        return result
+    except requests.RequestException as e:
+        logger.error(f"Request error: {e}")
+        return "Sorry, I'm having trouble connecting to the service."
+    except Exception as e:
+        logger.error(f"Unexpected error: {e}")
+        return "Sorry, I'm having trouble processing your request."
+
+# Initialize Flask web server
+app = Flask(__name__)
+
+@app.route('/')
+def index():
+    return "Bot is running!"
+
+@app.route('/webhook', methods=['POST'])
+def webhook():
+    json_str = request.get_data(as_text=True)
+    update = telebot.types.Update.de_json(json_str)
+    bot.process_new_updates([update])
+    return '', 200
+
+@bot.message_handler(commands=['start', 'help'])
+def send_welcome(message):
+    bot.send_message(message.chat.id, "Hello! I’m Roxxy, your friendly assistant created by Hafis. I'm here to help with whatever you need. Feel free to ask me anything!")
+
+@bot.message_handler(commands=['reset'])
+def reset_conversation(message):
+    user_id = message.chat.id
+    set_user_data(user_id, get_user_data(user_id)['name'], '')
+    bot.send_message(user_id, "Your conversation history has been reset. Let's start fresh!")
+
+@bot.message_handler(func=lambda message: True)
+def handle_message(message):
+    user_id = message.chat.id
+    user_message = message.text
+
+    if "my name is" in user_message.lower():
+        name = user_message.split("my name is ", 1)[1]
+        set_user_data(user_id, name.capitalize(), get_user_data(user_id)['conversation_history'])
+        bot.send_message(user_id, f"Nice to meet you, {name.capitalize()}!")
     else:
-        logger.error('Failed to authenticate with Aternos API')
-        return None
+        bot_response = generate_response(user_id, user_message)
+        bot.send_message(user_id, bot_response)
 
-# Get a list of available servers
-def get_servers(token):
-    headers = {'Authorization': f'Bearer {token}', 'User-Agent': random.choice(user_agents)}
-    servers_response = requests.get(f'{aternos_api_url}/server/list', headers=headers)
-    if servers_response.status_code == 200:
-        return servers_response.json()['servers']
-    else:
-        logger.error('Failed to retrieve server list')
-        return []
+def run_bot():
+    bot.polling()
 
-# Start a server
-def start_server(token, server_id):
-    headers = {'Authorization': f'Bearer {token}', 'User-Agent': random.choice(user_agents)}
-    start_response = requests.post(f'{aternos_api_url}/server/{server_id}/start', headers=headers)
-    if start_response.status_code == 200:
-        return True
-    else:
-        logger.error('Failed to start server')
-        return False
+# Initialize the database
+init_db()
 
-# Define the /start command handler
-def start(update, context):
-    token = authenticate()
-    if token:
-        servers = get_servers(token)
-        if servers:
-            keyboard = []
-            for server in servers:
-                keyboard.append([{'text': server['name'], 'callback_data': server['id']}])
-            context.bot.send_message(chat_id=update.effective_chat.id, text='Select a server to turn on:', reply_markup={'inline_keyboard': keyboard})
-        else:
-            context.bot.send_message(chat_id=update.effective_chat.id, text='No servers available')
-    else:
-        context.bot.send_message(chat_id=update.effective_chat.id, text='Failed to authenticate with Aternos API')
+# Start the Flask web server in a separate thread
+threading.Thread(target=lambda: app.run(host='0.0.0.0', port=8080)).start()
 
-# Define the button click handler
-def button_click(update, context):
-    server_id = update.callback_query.data
-    token = authenticate()
-    if token:
-        if start_server(token, server_id):
-            context.bot.send_message(chat_id=update.effective_chat.id, text=f'Server {server_id} started successfully!')
-        else:
-            context.bot.send_message(chat_id=update.effective_chat.id, text=f'Failed to start server {server_id}')
-
-# Add a delay between requests to avoid rate limiting
-def delay_request():
-    time.sleep(random.randint(2, 5))  # wait for 2-5 seconds
-
-# Create the Telegram bot
-def main():
-    updater = Updater(bot_api_key, use_context=True)
-
-    dp = updater.dispatcher
-
-    dp.add_handler(CommandHandler('start', start))
-    dp.add_handler(CallbackQueryHandler(button_click))
-
-    updater.start_polling()
-    updater.idle()
-
-if __name__ == '__main__':
-    main()
+# Start the Telegram bot
+run_bot()
