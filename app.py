@@ -5,6 +5,7 @@ import requests
 import sqlite3
 import logging
 import threading
+from telebot import types
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -58,16 +59,13 @@ def set_user_data(user_id, name, conversation_history):
 def generate_response(user_id, message):
     """Generate a response using the GPT-4 API."""
     try:
-        # Retrieve user data and build conversation history
         user_data = get_user_data(user_id)
         conversation_history = user_data['conversation_history'] + f"User: {message}\n"
         
         if "weather" in message.lower():
-            # Handle weather queries
             location = message.split("weather in ", 1)[1] if "weather in " in message.lower() else "your location"
             result = fetch_weather(location)
         else:
-            # Generate a response using GPT-4
             prompt = f"{conversation_history}Bot: Respond in a friendly and engaging manner."
             url = f"https://gpt4.giftedtech.workers.dev/?prompt={prompt}"
             response = requests.get(url)
@@ -75,17 +73,16 @@ def generate_response(user_id, message):
 
             result = response.json().get("result", "Sorry, I couldn't generate a response.")
         
-        # Update conversation history and user data
         conversation_history += f"Bot: {result}\n"
         set_user_data(user_id, user_data['name'], conversation_history)
         
         return result
     except requests.RequestException as e:
         logger.error(f"Request error: {e}")
-        return "Sorry, I’m having trouble connecting to the service. Is there anything else you’d like to discuss or ask about?"
+        return "Sorry, I'm having trouble connecting to the service."
     except Exception as e:
         logger.error(f"Unexpected error: {e}")
-        return "Something went wrong. Do you have any other questions or need help with something else?"
+        return "Sorry, I'm having trouble processing your request."
 
 def fetch_weather(location):
     """Fetch the weather information from a weather API."""
@@ -112,7 +109,28 @@ def handle_message(data):
 
 @bot.message_handler(commands=['start', 'help'])
 def send_welcome(message):
-    bot.send_message(message.chat.id, "Hello! I’m Faxx, your friendly assistant created by Hafis. I'm here to help with whatever you need. Feel free to ask me anything!")
+    keyboard = types.InlineKeyboardMarkup()
+    button1 = types.InlineKeyboardButton("Option 1", callback_data='option1')
+    button2 = types.InlineKeyboardButton("Option 2", callback_data='option2')
+    keyboard.add(button1, button2)
+    
+    bot.send_message(message.chat.id, "Choose an option:", reply_markup=keyboard)
+
+@bot.message_handler(commands=['poll'])
+def create_poll(message):
+    question = "What's your favorite programming language?"
+    options = ["Python", "JavaScript", "Java", "C++"]
+    
+    bot.send_poll(message.chat.id, question, options, is_anonymous=False, allows_multiple_answers=True)
+
+@bot.callback_query_handler(func=lambda call: True)
+def handle_query(call):
+    if call.data == 'option1':
+        bot.answer_callback_query(call.id, "You selected Option 1")
+        bot.send_message(call.message.chat.id, "You chose Option 1!")
+    elif call.data == 'option2':
+        bot.answer_callback_query(call.id, "You selected Option 2")
+        bot.send_message(call.message.chat.id, "You chose Option 2!")
 
 @bot.message_handler(commands=['reset'])
 def reset_conversation(message):
@@ -125,10 +143,31 @@ def handle_message(message):
     user_id = message.chat.id
     user_message = message.text
 
-    if "my name is" in user_message.lower():
-        name = user_message.split("my name is ", 1)[1]
-        set_user_data(user_id, name.capitalize(), get_user_data(user_id)['conversation_history'])
-        bot.send_message(user_id, f"Nice to meet you, {name.capitalize()}!")
+    if "bold" in user_message.lower():
+        bot.send_message(user_id, "*This is bold text*", parse_mode='MarkdownV2')
+    elif "italic" in user_message.lower():
+        bot.send_message(user_id, "_This is italic text_", parse_mode='MarkdownV2')
+    elif "inline code" in user_message.lower():
+        bot.send_message(user_id, "`print('Hello World')`", parse_mode='MarkdownV2')
+    elif "link" in user_message.lower():
+        bot.send_message(user_id, "[OpenAI](https://www.openai.com/)", parse_mode='MarkdownV2')
+    elif "list" in user_message.lower():
+        list_message = """
+        *Unordered List:*
+        - Item 1
+        - Item 2
+
+        *Ordered List:*
+        1. First
+        2. Second
+        """
+        bot.send_message(user_id, list_message, parse_mode='MarkdownV2')
+    elif "preformatted" in user_message.lower():
+        preformatted_message = """
+        """
+        bot.send_message(user_id, preformatted_message, parse_mode='MarkdownV2')
+    elif "spoiler" in user_message.lower():
+        bot.send_message(user_id, "||This is a spoiler text||", parse_mode='MarkdownV2')
     else:
         bot_response = generate_response(user_id, user_message)
         bot.send_message(user_id, bot_response)
