@@ -5,14 +5,13 @@ import requests
 import sqlite3
 import logging
 import threading
-from telebot import types
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Telegram bot token
-TELEGRAM_BOT_TOKEN = '7282603200:AAEJnNY9Z-sQfBrrwzkroiY754NndaEPSlY'
+TELEGRAM_BOT_TOKEN = 'YOUR_TELEGRAM_BOT_TOKEN'
 
 # Initialize the bot
 bot = telebot.TeleBot(TELEGRAM_BOT_TOKEN)
@@ -57,7 +56,7 @@ def set_user_data(user_id, name, conversation_history):
         ''', (user_id, name, conversation_history))
 
 def generate_response(user_id, message):
-    """Generate a response using the GPT-4 API."""
+    """Generate a response using the GPT-4 API or predefined actions."""
     try:
         user_data = get_user_data(user_id)
         conversation_history = user_data['conversation_history'] + f"User: {message}\n"
@@ -65,6 +64,29 @@ def generate_response(user_id, message):
         if "weather" in message.lower():
             location = message.split("weather in ", 1)[1] if "weather in " in message.lower() else "your location"
             result = fetch_weather(location)
+        elif "send button with hafis name" in message.lower():
+            send_custom_button(user_id, "Hafis")
+            result = "I've sent a button with 'Hafis' on it."
+        elif "send inline button" in message.lower():
+            send_inline_button(user_id, "Click Me!")
+            result = "I've sent an inline button for you."
+        elif "send photo" in message.lower():
+            send_photo(user_id, 'https://example.com/photo.jpg')  # Replace with actual photo URL
+            result = "I've sent a photo for you."
+        elif "send document" in message.lower():
+            send_document(user_id, 'https://example.com/document.pdf')  # Replace with actual document URL
+            result = "I've sent a document for you."
+        elif "send video" in message.lower():
+            send_video(user_id, 'https://example.com/video.mp4')  # Replace with actual video URL
+            result = "I've sent a video for you."
+        elif "send location" in message.lower():
+            send_location(user_id, 40.7128, -74.0060)  # Example coordinates (New York City)
+            result = "I've sent a location for you."
+        elif "send contact" in message.lower():
+            send_contact(user_id, "John Doe", "+1234567890")
+            result = "I've sent a contact for you."
+        elif "help" in message.lower():
+            result = get_help_message()
         else:
             prompt = f"{conversation_history}Bot: Respond in a friendly and engaging manner."
             url = f"https://gpt4.giftedtech.workers.dev/?prompt={prompt}"
@@ -89,6 +111,55 @@ def fetch_weather(location):
     # Placeholder implementation; replace with actual API call
     return f"The weather in {location} is currently sunny with a temperature of 28°C."
 
+def send_custom_button(chat_id, button_text):
+    """Send a custom button with specified text."""
+    markup = telebot.types.ReplyKeyboardMarkup(one_time_keyboard=True, resize_keyboard=True)
+    button = telebot.types.KeyboardButton(button_text)
+    markup.add(button)
+    bot.send_message(chat_id, "Here's a button for you:", reply_markup=markup)
+
+def send_inline_button(chat_id, button_text):
+    """Send an inline button with specified text."""
+    markup = telebot.types.InlineKeyboardMarkup()
+    button = telebot.types.InlineKeyboardButton(button_text, callback_data='button_click')
+    markup.add(button)
+    bot.send_message(chat_id, "Here's an inline button for you:", reply_markup=markup)
+
+def send_photo(chat_id, photo_url):
+    """Send a photo to the user."""
+    bot.send_photo(chat_id, photo_url)
+
+def send_document(chat_id, document_url):
+    """Send a document to the user."""
+    bot.send_document(chat_id, document_url)
+
+def send_video(chat_id, video_url):
+    """Send a video to the user."""
+    bot.send_video(chat_id, video_url)
+
+def send_location(chat_id, latitude, longitude):
+    """Send a location to the user."""
+    bot.send_location(chat_id, latitude, longitude)
+
+def send_contact(chat_id, contact_name, contact_phone):
+    """Send a contact to the user."""
+    bot.send_contact(chat_id, contact_phone, contact_name)
+
+def get_help_message():
+    """Generate a help message for the user."""
+    return (
+        "Here’s what I can do:\n"
+        "1. **Send a Button**: Just say 'Send button with [text]'.\n"
+        "2. **Send an Inline Button**: Just say 'Send inline button with [text]'.\n"
+        "3. **Send a Photo**: Just say 'Send photo'.\n"
+        "4. **Send a Document**: Just say 'Send document'.\n"
+        "5. **Send a Video**: Just say 'Send video'.\n"
+        "6. **Send a Location**: Just say 'Send location'.\n"
+        "7. **Send a Contact**: Just say 'Send contact'.\n"
+        "8. **Weather Information**: Just ask for the weather in a location.\n"
+        "9. **Reset Conversation**: Use the '/reset' command to start fresh."
+    )
+
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -109,28 +180,7 @@ def handle_message(data):
 
 @bot.message_handler(commands=['start', 'help'])
 def send_welcome(message):
-    keyboard = types.InlineKeyboardMarkup()
-    button1 = types.InlineKeyboardButton("Option 1", callback_data='option1')
-    button2 = types.InlineKeyboardButton("Option 2", callback_data='option2')
-    keyboard.add(button1, button2)
-    
-    bot.send_message(message.chat.id, "Choose an option:", reply_markup=keyboard)
-
-@bot.message_handler(commands=['poll'])
-def create_poll(message):
-    question = "What's your favorite programming language?"
-    options = ["Python", "JavaScript", "Java", "C++"]
-    
-    bot.send_poll(message.chat.id, question, options, is_anonymous=False, allows_multiple_answers=True)
-
-@bot.callback_query_handler(func=lambda call: True)
-def handle_query(call):
-    if call.data == 'option1':
-        bot.answer_callback_query(call.id, "You selected Option 1")
-        bot.send_message(call.message.chat.id, "You chose Option 1!")
-    elif call.data == 'option2':
-        bot.answer_callback_query(call.id, "You selected Option 2")
-        bot.send_message(call.message.chat.id, "You chose Option 2!")
+    bot.send_message(message.chat.id, get_help_message())
 
 @bot.message_handler(commands=['reset'])
 def reset_conversation(message):
@@ -143,31 +193,10 @@ def handle_message(message):
     user_id = message.chat.id
     user_message = message.text
 
-    if "bold" in user_message.lower():
-        bot.send_message(user_id, "*This is bold text*", parse_mode='MarkdownV2')
-    elif "italic" in user_message.lower():
-        bot.send_message(user_id, "_This is italic text_", parse_mode='MarkdownV2')
-    elif "inline code" in user_message.lower():
-        bot.send_message(user_id, "`print('Hello World')`", parse_mode='MarkdownV2')
-    elif "link" in user_message.lower():
-        bot.send_message(user_id, "[OpenAI](https://www.openai.com/)", parse_mode='MarkdownV2')
-    elif "list" in user_message.lower():
-        list_message = """
-        *Unordered List:*
-        - Item 1
-        - Item 2
-
-        *Ordered List:*
-        1. First
-        2. Second
-        """
-        bot.send_message(user_id, list_message, parse_mode='MarkdownV2')
-    elif "preformatted" in user_message.lower():
-        preformatted_message = """
-        """
-        bot.send_message(user_id, preformatted_message, parse_mode='MarkdownV2')
-    elif "spoiler" in user_message.lower():
-        bot.send_message(user_id, "||This is a spoiler text||", parse_mode='MarkdownV2')
+    if "my name is" in user_message.lower():
+        name = user_message.split("my name is ", 1)[1]
+        set_user_data(user_id, name.capitalize(), get_user_data(user_id)['conversation_history'])
+        bot.send_message(user_id, f"Nice to meet you, {name.capitalize()}!")
     else:
         bot_response = generate_response(user_id, user_message)
         bot.send_message(user_id, bot_response)
