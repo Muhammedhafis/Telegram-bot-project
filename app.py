@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 
 # Telegram Bot Token
-API_TOKEN = 'YOUR_TELEGRAM_BOT_API_TOKEN'  # Replace with your bot's API token
+API_TOKEN = '7282603200:AAEJnNY9Z-sQfBrrwzkroiY754NndaEPSlY'  # Replace with your bot's API token
 bot = telebot.TeleBot(API_TOKEN)
 
 # Webhook setup
