@@ -10,6 +10,13 @@ import threading
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Optional: log to a file
+handler = logging.FileHandler('app.log')
+handler.setLevel(logging.INFO)
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+handler.setFormatter(formatter)
+logger.addHandler(handler)
+
 # Telegram bot token
 TELEGRAM_BOT_TOKEN = '7282603200:AAEJnNY9Z-sQfBrrwzkroiY754NndaEPSlY'
 
@@ -100,7 +107,7 @@ def webhook():
     return '', 200
 
 @socketio.on('message')
-def handle_message(data):
+def handle_socket_message(data):
     user_id = data['user_id']
     message = data['message']
     response = generate_response(user_id, message)
@@ -117,7 +124,7 @@ def reset_conversation(message):
     bot.send_message(user_id, "Your conversation history has been reset. Let's start fresh!")
 
 @bot.message_handler(func=lambda message: True)
-def handle_message(message):
+def handle_telegram_message(message):
     user_id = message.chat.id
     user_message = message.text
 
