@@ -1,26 +1,14 @@
 import logging
 import telebot
 from flask import Flask, request
-import requests
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Initialize Flask app
-app = Flask(__name__)
-
 # Telegram Bot Token
 API_TOKEN = '7282603200:AAEJnNY9Z-sQfBrrwzkroiY754NndaEPSlY'  # Replace with your bot's API token
 bot = telebot.TeleBot(API_TOKEN)
-
-# Webhook setup
-@app.route('/webhook', methods=['POST'])
-def webhook():
-    json_str = request.get_data(as_text=True)
-    update = telebot.types.Update.de_json(json_str)
-    bot.process_new_updates([update])
-    return "OK", 200
 
 # Function to handle messages
 @bot.message_handler(func=lambda message: True)
@@ -64,9 +52,6 @@ def generate_response(user_id, message):
             result = "I'm not sure how to handle that request. Type 'help' for a list of commands."
 
         return result
-    except requests.RequestException as e:
-        logger.error(f"Request error: {e}")
-        return "Sorry, I'm having trouble connecting to the service."
     except Exception as e:
         logger.error(f"Unexpected error: {e}")
         return "Sorry, I'm having trouble processing your request."
@@ -123,4 +108,5 @@ def get_help_message():
             "- Type 'help' to see this message again.")
 
 if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=8080)
+    # Start polling
+    bot.polling(none_stop=True)
