@@ -5,7 +5,7 @@ import telebot
 genai.configure(api_key="AIzaSyAjAW4Mv3jbVUFb11EuAVuBAHCr3wFOYks")
 
 # Telegram Bot Token
-bot = telebot.TeleBot("7804136783:AAFaLl5-5FnzD6fTcqH8hX4H58jH5dL4HXg")
+bot = telebot.TeleBot("7245981928:AAGYdGsJGvfdKV95q7Q2W9YE8AGNatLj_iA")
 
 # Command handler
 @bot.message_handler(commands=['start', 'help'])
