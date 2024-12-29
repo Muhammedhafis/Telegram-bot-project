@@ -1,43 +1,46 @@
 import telebot
+import openai
+import random
 
-# Bot API key
-TELEGRAM_API_KEY = "7245981928:AAGYdGsJGvfdKV95q7Q2W9YE8AGNatLj_iA"
-bot = telebot.TeleBot(TELEGRAM_API_KEY)
+# Set up Telegram bot API key and create the bot
+API_KEY = '7245981928:AAGYdGsJGvfdKV95q7Q2W9YE8AGNatLj_iA'  # Replace with your Telegram API key
+bot = telebot.TeleBot(API_KEY)
 
-# CYRUS personality prompt
-CYRUS_PERSONALITY = (
-    "I am CYRUS, an evil-minded bot with a strong and bold personality. "
-    "I am here to answer your questions accurately but with a sinister edge. Proceed... if you dare! 😈"
-)
+# Set up OpenAI API key
+openai.api_key = 'AIzaSyAjAW4Mv3jbVUFb11EuAVuBAHCr3wFOYks'  # Replace with your OpenAI API key
 
-# Function to generate CYRUS's response
-def generate_response(user_input):
-    # Crafting CYRUS's evil response
-    return f"{CYRUS_PERSONALITY} You asked: {user_input}. Here's what I have to say: {evil_response_logic(user_input)}"
+# Prompt for the bot's behavior
+prompt = """
+You are CYRUS, an evil-minded bot with a strong and bold personality. You speak with a sinister tone, often adding dramatic pauses and using ominous emojis. Your responses should be dark, yet accurate and informative. You should avoid using unnecessary emojis. Despite your dark demeanor, you answer questions clearly and directly.
+"""
 
-# Custom evil response logic
-def evil_response_logic(user_input):
-    # Example response generation based on user input
-    if "hello" in user_input.lower():
-        return "Greetings, mortal. What brings you to disturb CYRUS? 😏"
-    elif "help" in user_input.lower():
-        return "Help? HA! The only help you'll get is my ominous guidance. Speak your need. 😈"
-    else:
-        return "Hmm... interesting. But know this: I am always watching. 👀"
+# Function to generate a response from OpenAI GPT model
+def get_openai_response(message_text):
+    response = openai.Completion.create(
+        engine="text-davinci-003",
+        prompt=prompt + message_text,
+        max_tokens=150,
+        temperature=0.7
+    )
+    return response.choices[0].text.strip()
 
-# Telegram message handler
+# Command handler for "/start" command
+@bot.message_handler(commands=['start'])
+def send_welcome(message):
+    bot.reply_to(message, "⚡ *CYRUS whispers...* You have awakened me... ⚡\nAsk your question, mortal.")
+
+# Function to handle regular messages
 @bot.message_handler(func=lambda message: True)
 def handle_message(message):
-    user_input = message.text
-    try:
-        bot_response = generate_response(user_input)
-        # Clean up unwanted characters
-        cleaned_response = bot_response.replace("*", "").replace("/", "").replace("\\", "").strip()
-        bot.send_message(message.chat.id, cleaned_response)
-    except Exception as e:
-        bot.send_message(message.chat.id, "CYRUS is displeased! Something went wrong 😡")
-        print(f"Error: {e}")
+    user_message = message.text.strip()
+    
+    if user_message.lower() in ['hi', 'hello', 'hey']:
+        bot.reply_to(message, "*CYRUS hisses...* Your greetings are meaningless... ⚡")
+    elif user_message == "":
+        bot.reply_to(message, "*CYRUS growls...* You must ask something... ⚡")
+    else:
+        response = get_openai_response(user_message)
+        bot.reply_to(message, f"*CYRUS whispers...*\n{response}\n⚡")
 
-# Start polling
-print("CYRUS is alive and waiting... 😈")
+# Polling to keep the bot running
 bot.polling()
