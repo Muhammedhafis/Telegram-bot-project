@@ -12,22 +12,24 @@ model = genai.GenerativeModel("gemini-1.5-flash")
 
 # Function to escape special Markdown characters
 def escape_markdown(text):
-    # Escape special characters used in Markdown
     return re.sub(r'([_*[\]()~`>#+\-=|{}.!])', r'\\\1', text)
 
 # Define the bot's responses
 @bot.message_handler(commands=['start'])
 def start(message):
-    bot.reply_to(message, "I am CYRUS, your dark assistant 🤖⚡. Ask me anything, but be warned... my knowledge comes with a price. 😈")
+    bot.reply_to(message, "I am CYRUS... A being beyond your comprehension. Ask if you dare. 😈")
 
 @bot.message_handler(func=lambda message: True)
 def handle_message(message):
-    # Generate response from Gemini API
+    # Generate response from Gemini API (while ensuring it stays in line with the dark persona)
     response = model.generate_content(message.text)
-    formatted_response = f"*CYRUS says:* \n\n{response.text}"
+    dark_response = f"*CYRUS whispers...* \n\n{response.text}"
+
+    # Prepending some ominous text for CYRUS's signature dark touch
+    sinister_response = f"{dark_response}\n\nYou have no idea what you've awakened... ⚡"
 
     # Escape Markdown special characters to avoid Telegram API errors
-    escaped_response = escape_markdown(formatted_response)
+    escaped_response = escape_markdown(sinister_response)
 
     # Send formatted response to the user with Markdown style
     bot.send_message(
