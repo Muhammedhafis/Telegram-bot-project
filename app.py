@@ -1,42 +1,43 @@
 import telebot
-import google.generativeai as genai
-import re
 
-# Telegram API key
-telegram_api_key = "7245981928:AAGYdGsJGvfdKV95q7Q2W9YE8AGNatLj_iA"
-bot = telebot.TeleBot(telegram_api_key)
+# Bot API key
+TELEGRAM_API_KEY = "7245981928:AAGYdGsJGvfdKV95q7Q2W9YE8AGNatLj_iA"
+bot = telebot.TeleBot(TELEGRAM_API_KEY)
 
-# Gemini API key configuration
-genai.configure(api_key="AIzaSyAjAW4Mv3jbVUFb11EuAVuBAHCr3wFOYks")
-model = genai.GenerativeModel("gemini-1.5-flash")
+# CYRUS personality prompt
+CYRUS_PERSONALITY = (
+    "I am CYRUS, an evil-minded bot with a strong and bold personality. "
+    "I am here to answer your questions accurately but with a sinister edge. Proceed... if you dare! 😈"
+)
 
-# Function to escape special Markdown characters
-def escape_markdown(text):
-    return re.sub(r'([_*[\]()~`>#+\-=|{}.!])', r'\\\1', text)
+# Function to generate CYRUS's response
+def generate_response(user_input):
+    # Crafting CYRUS's evil response
+    return f"{CYRUS_PERSONALITY} You asked: {user_input}. Here's what I have to say: {evil_response_logic(user_input)}"
 
-# Define the bot's responses
-@bot.message_handler(commands=['start'])
-def start(message):
-    bot.reply_to(message, "I am CYRUS... A being beyond your comprehension. Ask if you dare. 😈")
+# Custom evil response logic
+def evil_response_logic(user_input):
+    # Example response generation based on user input
+    if "hello" in user_input.lower():
+        return "Greetings, mortal. What brings you to disturb CYRUS? 😏"
+    elif "help" in user_input.lower():
+        return "Help? HA! The only help you'll get is my ominous guidance. Speak your need. 😈"
+    else:
+        return "Hmm... interesting. But know this: I am always watching. 👀"
 
+# Telegram message handler
 @bot.message_handler(func=lambda message: True)
 def handle_message(message):
-    # Generate response from Gemini API (while ensuring it stays in line with the dark persona)
-    response = model.generate_content(message.text)
-    dark_response = f"*CYRUS whispers...* \n\n{response.text}"
+    user_input = message.text
+    try:
+        bot_response = generate_response(user_input)
+        # Clean up unwanted characters
+        cleaned_response = bot_response.replace("*", "").replace("/", "").replace("\\", "").strip()
+        bot.send_message(message.chat.id, cleaned_response)
+    except Exception as e:
+        bot.send_message(message.chat.id, "CYRUS is displeased! Something went wrong 😡")
+        print(f"Error: {e}")
 
-    # Prepending some ominous text for CYRUS's signature dark touch
-    sinister_response = f"{dark_response}\n\nYou have no idea what you've awakened... ⚡"
-
-    # Escape Markdown special characters to avoid Telegram API errors
-    escaped_response = escape_markdown(sinister_response)
-
-    # Send formatted response to the user with Markdown style
-    bot.send_message(
-        message.chat.id,
-        escaped_response,
-        parse_mode='Markdown'
-    )
-
-# Start polling for messages
+# Start polling
+print("CYRUS is alive and waiting... 😈")
 bot.polling()
